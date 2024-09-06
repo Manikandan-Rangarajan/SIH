@@ -1,0 +1,21 @@
+.App {
+  text-align: center;
+}
+
+.messages {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+form {
+  display: flex;
+  justify-content: center;
+}
+
+input {
+  flex: 1;
+  margin-right: 10px;
+}
