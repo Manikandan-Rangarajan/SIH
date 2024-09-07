@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import './App.css';
 
+// Initialize socket connection
 const socket = io('http://localhost:5000');
 
 function Chat() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
-  const [myId, setMyId] = useState(null);  // Store user's unique ID
+  const [myId, setMyId] = useState(null);
 
   useEffect(() => {
     // Get the socket's unique ID
@@ -20,6 +20,7 @@ function Chat() {
       setMessages((prevMessages) => [...prevMessages, msg]);
     });
 
+    // Clean up on unmount
     return () => {
       socket.off('connect');
       socket.off('chat message');
@@ -28,7 +29,6 @@ function Chat() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (message.trim() !== '') {
       const newMessage = { text: message, senderId: myId };  // Attach sender's ID
       socket.emit('chat message', newMessage);  // Send message to server
@@ -38,8 +38,10 @@ function Chat() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      <h1 className="text-2xl font-bold text-center p-4 bg-blue-600 text-white">Chat Application</h1>
-      
+      <h1 className="text-2xl font-bold text-center p-4 bg-blue-600 text-white">
+        Chat Application
+      </h1>
+
       <div className="flex-grow p-4 overflow-y-auto">
         {messages.map((msg, index) => (
           <div 
@@ -51,7 +53,7 @@ function Chat() {
           </div>
         ))}
       </div>
-      
+
       <form onSubmit={handleSubmit} className="flex p-4 bg-white border-t border-gray-300">
         <input
           type="text"
@@ -71,5 +73,4 @@ function Chat() {
   );
 }
 
-
-export default Chat
+export default Chat;
