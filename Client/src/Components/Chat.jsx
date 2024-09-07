@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
@@ -83,9 +84,10 @@ function Chat() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (message.trim() !== '' && recipientId) {
-      // Emit private message event
-      socket.emit('private message', { recipientId, text: message, sender: username });
-      setMessage('');
+      const newMessage = { recipientId, text: message, sender: username };
+      socket.emit('private message', newMessage);
+      setMessages((prevMessages) => [...prevMessages, newMessage]); // Add the sent message to the state
+      setMessage(''); // Clear the input field after sending
     }
   };
 
