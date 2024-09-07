@@ -27,7 +27,7 @@ const uri = "mongodb+srv://Manikandan:Sayonara2022@jstore.udxro.mongodb.net/?ret
 
 
 // Connect to MongoDB
-mongoose.connect(uri, {
+mongoose.connect("mongodb://localhost:27017/chat", {
   
  })
   .then(() => console.log('MongoDB connected'))

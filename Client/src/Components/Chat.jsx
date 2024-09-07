@@ -19,6 +19,7 @@ function Chat() {
         .then(response => {
           setUsername(response.data.username);
           socket.emit('set username', userId);
+          console.log(userId)
         })
         .catch(error => {
           console.error('Error fetching user:', error);
@@ -57,10 +58,13 @@ function Chat() {
         {messages.map((msg, index) => (
           <div
             key={index}
-            className={`message mb-4 p-3 rounded-lg w-2/3
-              ${msg.sender === username ? 'ml-auto bg-blue-500 text-white' : 'mr-auto bg-gray-200 text-black'}`}
+            className={`flex mb-4 ${msg.sender === username ? 'justify-end' : 'justify-start'}`}
           >
-            <strong>{msg.sender}:</strong> {msg.text}
+            <div
+              className={`p-3 rounded-lg max-w-xs ${msg.sender === username ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}
+            >
+              <strong>{msg.sender}:</strong> {msg.text}
+            </div>
           </div>
         ))}
       </div>
