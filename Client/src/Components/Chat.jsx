@@ -144,7 +144,10 @@ function Chat() {
             className={`flex mb-4 ${msg.sender === username ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`p-3 rounded-lg max-w-xs ${msg.sender === username ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}
+              className={`p-3 rounded-lg 
+                max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-2xl 
+                ${msg.sender === username ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}
+                break-words`} // Ensure text wraps properly
             >
               <strong>{msg.sender}:</strong> {msg.text}
             </div>
@@ -152,13 +155,14 @@ function Chat() {
         ))}
       </div>
 
+
       <form onSubmit={handleSubmit} className="flex p-4 bg-white border-t border-gray-300">
         <input
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
-          placeholder="Type a message"
+          placeholder="Type your message"
         />
         <button
           type="submit"
