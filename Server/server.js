@@ -22,14 +22,8 @@ app.use(express.static(path.join(__dirname, '../Client/dist')));
 app.use(bodyParser.json());
 app.use(cors()); // Use CORS middleware
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://Manikandan:Sayonara2022@jstore.udxro.mongodb.net/?retryWrites=true&w=majority&appName=Jstore";
-
-
-// Connect to MongoDB
-mongoose.connect("mongodb://localhost:27017/chat", {
-  
- })
+// MongoDB Connection
+mongoose.connect("mongodb://localhost:27017/chat")
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -85,15 +79,22 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Search users endpoint
+app.get('/search-users', async (req, res) => {
+  const { query } = req.query;
 
-// API route example
-app.get('/api/hello', (req, res) => {
-  res.json({ message: 'Hello from Express!' });
-});
+  if (!query) {
+    return res.status(400).json({ message: 'Query parameter is required' });
+  }
 
-// All other routes should return the React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../Client/dist', 'index.html'));
+  try {
+    // Use regex to allow partial matching (case-insensitive)
+    const users = await User.find({ username: new RegExp(query, 'i') }).select('_id username');
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // Socket.IO configuration
@@ -106,23 +107,50 @@ io.on('connection', (socket) => {
       console.log('Invalid userId');
       return;
     }
-    await User.findByIdAndUpdate(userId, { socketId: socket.id });
+    const user = await User.findByIdAndUpdate(userId, { socketId: socket.id });
+    if (user) {
+      console.log(`${user.username} connected with socket ID: ${socket.id}`);
+    }
   });
 
+  // Handle private messaging
+  socket.on('private message', async (msg) => {
+    const { recipientId, text } = msg;
+    const recipient = await User.findById(recipientId);
+
+    if (recipient && recipient.socketId) {
+      const sender = await User.findOne({ socketId: socket.id });
+      const senderUsername = sender ? sender.username : 'Anonymous';
+
+      // Send message to the recipient only
+      io.to(recipient.socketId).emit('chat message', {
+        text,
+        sender: senderUsername,
+      });
+
+      console.log(`Message sent from ${senderUsername} to ${recipient.username}`);
+    } else {
+      console.log('Recipient not found or not connected');
+    }
+  });
+
+  // Broadcast chat message
   socket.on('chat message', async (msg) => {
-    // Find user by socket ID
     const user = await User.findOne({ socketId: socket.id });
     const senderUsername = user ? user.username : 'Anonymous';
-
-    // Emit the message with sender info
     io.emit('chat message', { text: msg.text, sender: senderUsername });
   });
 
+  // Handle disconnection
   socket.on('disconnect', async () => {
     console.log('User disconnected');
-    // Clear socketId on disconnect
     await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
   });
+});
+
+// All other routes should return the React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Client/dist', 'index.html'));
 });
 
 // Start the server
