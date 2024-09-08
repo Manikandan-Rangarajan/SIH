@@ -1,26 +1,84 @@
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const socketIo = require('socket.io');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import { Server as socketIo } from 'socket.io';
+import mongoose from 'mongoose';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import User from "./db.js";
+import RBAC, { JsonRBACProvider, RBACValidationError } from '@yanfoo/rbac-a';
+// import Dataperms from './permission-data.js';
 
-// Import your User model
-const User = require('./db'); // Ensure this model file is correctly set up
-
+// Initialize express
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new socketIo(server);
 
 // Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../Client/dist')));
+app.use(express.static(path.join(path.resolve(), '../Client/dist')));
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors()); // Use CORS middleware
+app.use(cors());
+
+
+//Acl communication setup due to lacking in techsetup this feature in under devlopment if we get
+//required tech support
+// Authorization middleware
+// function authorize(roles, permission) {
+//   return async (req, res, next) => {
+//     try {
+//       const hasPermission = await Promise.all(roles.map(role => rbac.can(role, permission)));
+//       if (hasPermission.some(permission => permission)) {
+//         next(); // Proceed if permission is granted
+//       } else {
+//         res.status(403).send('Forbidden: You do not have access to this resource.');
+//       }
+//     } catch (err) {
+//       console.error('Error checking permissions:', err);
+//       res.status(500).send('Internal server error');
+//     }
+//   };
+// }
+
+// const rbac = new RBAC({
+//   provider: new JsonRBACProvider(Dataperms),
+//   checkOptions: {
+//     onError: err => {
+//       if (err instanceof RBACValidationError) {
+//         console.error('Error while checking %s with user roles %s',
+//           JSON.stringify(err.user),
+//           JSON.stringify(err.role),
+//           err
+//         );
+//       } else {
+//         console.error(err);
+//       }
+//     }
+//   }
+// });
+
+// async function checkPermissions(userId, actions) {
+//   try {
+//     const result = await rbac.check(userId, actions);
+
+//     if (isNaN(result)) {
+//       console.log('User does not have the required permissions or the action is not recognized.');
+//     } else {
+//       console.log(`Access level for user ${userId} with actions '${actions}': ${result}`);
+//     }
+//   } catch (error) {
+//     console.error('Error checking permissions:', error);
+//   }
+// }
+
+// // Example usage
+// await checkPermissions(3, 'login');       // Check if user #3 can 'login'
+// await checkPermissions(2, 'create, edit'); // Check if user #2 can 'create' and 'edit'
+// await checkPermissions(1, 'edit');        // Check if user #1 can 'edit'
+
 
 // MongoDB Connection
 mongoose.connect("mongodb://localhost:27017/chat")
@@ -32,16 +90,12 @@ app.post('/signup', async (req, res) => {
   const { email, username, password } = req.body;
 
   try {
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ status: 'error', message: 'User already exists' });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user
     const newUser = new User({ email, username, password: hashedPassword, realpassword: password });
     await newUser.save();
 
@@ -57,19 +111,16 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Check if user exists
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(400).json({ status: 'error', message: 'Invalid credentials' });
     }
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ status: 'error', message: 'Invalid credentials' });
     }
 
-    // Generate token (optional)
     const token = jwt.sign({ id: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
 
     res.status(200).json({ status: 'success', message: 'Login successful', token, userId: user._id });
@@ -79,7 +130,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-//get req for contacts
+// Get contacts endpoint
 app.get('/contacts/:userId', async (req, res) => {
   const { userId } = req.params;
 
@@ -96,7 +147,6 @@ app.get('/contacts/:userId', async (req, res) => {
   }
 });
 
-
 // Search users endpoint
 app.get('/search-users', async (req, res) => {
   const { query } = req.query;
@@ -106,7 +156,6 @@ app.get('/search-users', async (req, res) => {
   }
 
   try {
-    // Use regex to allow partial matching (case-insensitive)
     const users = await User.find({ username: new RegExp(query, 'i') }).select('_id username');
     res.status(200).json(users);
   } catch (error) {
@@ -115,11 +164,30 @@ app.get('/search-users', async (req, res) => {
   }
 });
 
+// // Approve freight forwarder endpoint
+// app.post('/approveFreightForwarder', authorize(['client', 'admin'], 'approve_ff'), async (req, res) => {
+//   const { clientId, freightForwarderId } = req.body;
+
+//   try {
+//     const freightForwarder = await User.findById(freightForwarderId);
+//     if (!freightForwarder) {
+//       return res.status(404).json({ message: 'Freight forwarder not found' });
+//     }
+
+//     freightForwarder.role = 'approvedFreightForwarder';
+//     await freightForwarder.save();
+
+//     res.status(200).json({ message: 'Freight forwarder approved successfully' });
+//   } catch (error) {
+//     console.error('Error approving freight forwarder:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+
 // Socket.IO configuration
 io.on('connection', (socket) => {
   console.log('A user connected');
 
-  // Store socketId with user
   socket.on('set username', async (userId) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       console.log('Invalid userId');
@@ -131,16 +199,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle private messaging
   socket.on('private message', async (msg) => {
     const { recipientId, text } = msg;
     const recipient = await User.findById(recipientId);
-  
+
     if (recipient && recipient.socketId) {
       const sender = await User.findOne({ socketId: socket.id });
-  
+
       if (sender) {
-        // Add each other to the contacts list if not already present
         if (!sender.contacts.includes(recipient._id)) {
           sender.contacts.push(recipient._id);
           await sender.save();
@@ -149,29 +215,25 @@ io.on('connection', (socket) => {
           recipient.contacts.push(sender._id);
           await recipient.save();
         }
-  
-        // Send message
+
         io.to(recipient.socketId).emit('chat message', {
           text,
           sender: sender.username,
         });
-  
+
         console.log(`Message sent from ${sender.username} to ${recipient.username}`);
       }
     } else {
       console.log('Recipient not found or not connected');
     }
   });
-  
 
-  // Broadcast chat message
   socket.on('chat message', async (msg) => {
     const user = await User.findOne({ socketId: socket.id });
     const senderUsername = user ? user.username : 'Anonymous';
     io.emit('chat message', { text: msg.text, sender: senderUsername });
   });
 
-  // Handle disconnection
   socket.on('disconnect', async () => {
     console.log('User disconnected');
     await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
@@ -180,7 +242,7 @@ io.on('connection', (socket) => {
 
 // All other routes should return the React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../Client/dist', 'index.html'));
+  res.sendFile(path.join(path.resolve(), '../Client/dist', 'index.html'));
 });
 
 // Start the server
