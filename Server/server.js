@@ -79,6 +79,24 @@ app.post('/login', async (req, res) => {
   }
 });
 
+//get req for contacts
+app.get('/contacts/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId).populate('contacts', '_id username');
+    if (user) {
+      res.status(200).json(user.contacts);
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 // Search users endpoint
 app.get('/search-users', async (req, res) => {
   const { query } = req.query;
@@ -117,22 +135,34 @@ io.on('connection', (socket) => {
   socket.on('private message', async (msg) => {
     const { recipientId, text } = msg;
     const recipient = await User.findById(recipientId);
-
+  
     if (recipient && recipient.socketId) {
       const sender = await User.findOne({ socketId: socket.id });
-      const senderUsername = sender ? sender.username : 'Anonymous';
-
-      // Send message to the recipient only
-      io.to(recipient.socketId).emit('chat message', {
-        text,
-        sender: senderUsername,
-      });
-
-      console.log(`Message sent from ${senderUsername} to ${recipient.username}`);
+  
+      if (sender) {
+        // Add each other to the contacts list if not already present
+        if (!sender.contacts.includes(recipient._id)) {
+          sender.contacts.push(recipient._id);
+          await sender.save();
+        }
+        if (!recipient.contacts.includes(sender._id)) {
+          recipient.contacts.push(sender._id);
+          await recipient.save();
+        }
+  
+        // Send message
+        io.to(recipient.socketId).emit('chat message', {
+          text,
+          sender: sender.username,
+        });
+  
+        console.log(`Message sent from ${sender.username} to ${recipient.username}`);
+      }
     } else {
       console.log('Recipient not found or not connected');
     }
   });
+  
 
   // Broadcast chat message
   socket.on('chat message', async (msg) => {

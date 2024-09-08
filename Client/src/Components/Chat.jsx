@@ -16,6 +16,7 @@ function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [searchInitiated, setSearchInitiated] = useState(false); // Track if search was initiated
+  const [contacts, setContacts] = useState([]);// contacts
 
   useEffect(() => {
     // Retrieve user ID from local storage
@@ -55,6 +56,21 @@ function Chat() {
       socket.off('chat message');
       socket.off('private message');
     };
+  }, []);
+
+  // Fetch contacts once the component mounts
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    const fetchContacts = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/contacts/${userId}`);
+        setContacts(response.data); // Set the contacts in state
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+      }
+    };
+
+    fetchContacts();
   }, []);
 
   // Handle search users
@@ -137,6 +153,15 @@ function Chat() {
         </div>
       )}
 
+      <div className='flex flex-col'>
+      <div className="contacts-list">
+      <h3 className=' font-extrabold text-black'>Contacts</h3>
+      <ul>
+        {contacts.map((contact) => (
+          <li key={contact._id}><button onClick={() => handleSelectUser(contact)} className=' bg-blue-400 rounded-md text-black m-3 p-5 '>{contact.username}</button></li>
+        ))}
+      </ul>
+    </div>
       <div className="flex-grow p-4 overflow-y-auto">
         {messages.map((msg, index) => (
           <div
@@ -153,6 +178,7 @@ function Chat() {
             </div>
           </div>
         ))}
+      </div>
       </div>
 
 
