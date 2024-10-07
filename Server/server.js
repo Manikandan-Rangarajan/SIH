@@ -81,7 +81,7 @@ app.use(cors());
 
 
 // MongoDB Connection
-mongoose.connect("mongodb://localhost:27017/chat")
+mongoose.connect("mongodb+srv://Manikandan:Manikandan@jstore.udxro.mongodb.net/?retryWrites=true&w=majority&appName=Jstoret")
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
